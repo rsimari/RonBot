@@ -1,31 +1,37 @@
 package main
 
 import (
-
-	"encoding/json"
-	//"flag"
-	//"io"
-	//"io/ioutil"
-	//"os"
-	//"regexp"
-	//"strings"
 	"fmt"
-	//"time"
-	//"html"
-    "log"
-    //"net/http/httputil"
-    "net/http"
-
+	"net/http"
+	"encoding/json"
 	jwt "github.com/dgrijalva/jwt-go"
-
-
+	"log"
+	//"net/http/httputil"
 )
 
+type WebhookResult struct {
+	Action string
+}
+
+type WebhookReq struct {
+	Result WebhookResult
+}
+
+type WebhookFulfillment struct {
+	Speech string
+	DisplayText string
+	Source string
+}
+
+type WebhookRes struct {
+	Fulfillment WebhookFulfillment
+}
+
 type NewTokenStruct struct {
-	 FirstName string 
+	 FirstName string
 	 LastName string
 	 Email string
-	 Phone string 
+	 Phone string
 }
 
 func authorization(next http.Handler) http.Handler {
@@ -41,74 +47,30 @@ func textPost(w http.ResponseWriter, r *http.Request) {
   w.Write([]byte("OK"))
 }
 
-
-func main() {
-
-
-	textHandler := http.HandlerFunc(textPost)
-	http.Handle("/api/text", authorization(textHandler))
-
-    http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
-    	
-		w.Header().Set("Content-Type", "application/json")
-
-    	decoder := json.NewDecoder(r.Body)
-
-	    var t NewTokenStruct
-		err := decoder.Decode(&t)
-
-		if err != nil {
-			fmt.Println(err)
-			//return err 
-			fmt.Fprintf(w, "{ \"success\": false, \"err\": { \"message\": %s, \"code\": 10 }", "Invalid Post Parameters")
-
-		} else {
-
-			var key interface{}
-			key = []byte("EB32ODSKJN234KJNDSKJSODF89N")
-			token, err := signToken(t, key)
-
-			if err != nil {
-				fmt.Println(err)
-				//return fatal err
-				fmt.Fprintf(w, "{ \"success\": false, \"err\": { \"message\": %s, \"code\": 10 } }", "Invalid Post Parameters")
-			} else { 
-				fmt.Println(token)
-				//return token 
-				fmt.Fprintf(w, "{ \"success\": true, \"token\": \"%s\" }" , token)
-
-			}
-		} 
-
-    })
-
-
-    fmt.Println("Listening on port 8080...\n")
-
-    log.Fatal(http.ListenAndServe(":8080", nil))
-
-	//call when we generate API key 
-	/*out, err := signToken() 
-
+func handler(rw http.ResponseWriter, request* http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
+	//req, err := httputil.DumpRequest(request, true)
+	//fmt.Println(string(req))
+	decoder := json.NewDecoder(request.Body)
+	var t WebhookReq
+	err := decoder.Decode(&t)
 	if err != nil {
-		fmt.Println("Err")
-	} else {
-		err := validateToken(out) 
-		if err != nil {
-			fmt.Println("err")
-		} 
+		fmt.Println(err)
 	}
-	*/
 
-
+	//fmt.Println(t.Result.Action)
+	//res := WebhookFulfillment{ Speech: t.Result.Action, DisplayText: t.Result.Action, Source: "my dick" }
+	//res := WebhookRes{ WebhookFulfillment{ Speech: t.Result.Action, DisplayText: t.Result.Action } }
+	//json.NewEncoder(rw).Encode(res)
+	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", t.Result.Action)
 }
 
 func signToken(tokenStruct NewTokenStruct, key interface{}) (string, error) {
 
 	// create a new token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-   		"firstName": tokenStruct.FirstName,
-    	"lastName": tokenStruct.LastName,
+    "firstName": tokenStruct.FirstName,
+    "lastName": tokenStruct.LastName,
 	})
 
 	if out, err := token.SignedString(key); err == nil {
@@ -142,7 +104,63 @@ func validateToken(tokenString string) error {
 	    fmt.Println(err)
 	}
 
-	return nil 
+	return nil
 }
 
- 
+func main() {
+
+	textHandler := http.HandlerFunc(textPost)
+	http.Handle("/api/text", authorization(textHandler))
+	http.HandleFunc("/api", handler)
+
+  http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
+	  w.Header().Set("Content-Type", "application/json")
+
+    decoder := json.NewDecoder(r.Body)
+
+	  var t NewTokenStruct
+		err := decoder.Decode(&t)
+
+		if err != nil {
+			fmt.Println(err)
+			//return err 
+			fmt.Fprintf(w, "{ \"success\": false, \"err\": { \"message\": %s, \"code\": 10 }", "Invalid Post Parameters")
+
+		} else {
+
+			var key interface{}
+			key = []byte("EB32ODSKJN234KJNDSKJSODF89N")
+			token, err := signToken(t, key)
+
+			if err != nil {
+				fmt.Println(err)
+				//return fatal err
+				fmt.Fprintf(w, "{ \"success\": false, \"err\": { \"message\": %s, \"code\": 10 } }", "Invalid Post Parameters")
+			} else {
+				fmt.Println(token)
+				//return token 
+				fmt.Fprintf(w, "{ \"success\": true, \"token\": \"%s\" }" , token)
+
+			}
+		}
+
+    })
+
+
+    fmt.Println("Listening on port 8080...\n")
+
+    log.Fatal(http.ListenAndServe(":8080", nil))
+
+	//call when we generate API key 
+	/*out, err := signToken() 
+
+	if err != nil {
+		fmt.Println("Err")
+	} else {
+		err := validateToken(out) 
+		if err != nil {
+			fmt.Println("err")
+		} 
+	}
+	*/
+}
