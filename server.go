@@ -65,6 +65,28 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", t.Result.Action)
 }
 
+func spotify_auth() {
+  var BASE_URI string = "https://accounts.spotify.com/authorize"
+  req, err := http.NewRequest("GET", BASE_URI, nil)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  q := req.URL.Query()
+  q.Add("client_id", spotify_client_id)
+  q.Add("response_type", "code")
+  q.Add("redirect_uri", spotify_redirect)
+
+  req.URL.RawQuery = q.Encode()
+  fmt.Println(req.URL.String())
+  client := &http.Client{}
+  resp, er := client.Do(req)
+  if er != nil {
+    fmt.Println(er)
+  }
+  fmt.Println(resp)
+}
+
 func signToken(tokenStruct NewTokenStruct, key interface{}) (string, error) {
 
 	// create a new token
@@ -107,8 +129,13 @@ func validateToken(tokenString string) error {
 	return nil
 }
 
+var spotify_client_id string = "a8c0b2ec2d4542298259a9c6d85dba83"
+var spotify_client_secret string = "a01877d1e09245e3a1f22f04b8a9fc1e"
+var spotify_redirect string = "https://35.166.199.67:8080/"
+
 func main() {
 
+  spotify_auth()
 	textHandler := http.HandlerFunc(textPost)
 	http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api", webhook_handler)
