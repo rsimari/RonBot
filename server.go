@@ -47,7 +47,7 @@ func textPost(w http.ResponseWriter, r *http.Request) {
   w.Write([]byte("OK"))
 }
 
-func handler(rw http.ResponseWriter, request* http.Request) {
+func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	//req, err := httputil.DumpRequest(request, true)
 	//fmt.Println(string(req))
@@ -111,7 +111,7 @@ func main() {
 
 	textHandler := http.HandlerFunc(textPost)
 	http.Handle("/api/text", authorization(textHandler))
-	http.HandleFunc("/api", handler)
+	http.HandleFunc("/api", webhook_handler)
 
   http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
 	  w.Header().Set("Content-Type", "application/json")
@@ -140,16 +140,13 @@ func main() {
 				fmt.Println(token)
 				//return token 
 				fmt.Fprintf(w, "{ \"success\": true, \"token\": \"%s\" }" , token)
-
 			}
-		}
+    }
+  })
 
-    })
+  fmt.Println("Listening on port 8080...\n")
 
-
-    fmt.Println("Listening on port 8080...\n")
-
-    log.Fatal(http.ListenAndServe(":8080", nil))
+  log.Fatal(http.ListenAndServe(":8080", nil))
 
 	//call when we generate API key 
 	/*out, err := signToken() 
