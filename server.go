@@ -6,21 +6,27 @@ import (
 	"encoding/json"
 	jwt "github.com/dgrijalva/jwt-go"
 	"log"
+  "io/ioutil"
 	//"net/http/httputil"
 )
 
 type WebhookResult struct {
 	Action string
+  Fulfillment WebhookFulfillment
+}
+
+type WebhookMeta struct {
+  IntentName string
 }
 
 type WebhookReq struct {
 	Result WebhookResult
+  Metadata WebhookMeta
+  Id string
 }
 
 type WebhookFulfillment struct {
 	Speech string
-	DisplayText string
-	Source string
 }
 
 type WebhookRes struct {
@@ -49,31 +55,35 @@ func textPost(w http.ResponseWriter, r *http.Request) {
 
 func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
-	//req, err := httputil.DumpRequest(request, true)
-	//fmt.Println(string(req))
-	decoder := json.NewDecoder(request.Body)
+
+  decoder := json.NewDecoder(request.Body)
 	var t WebhookReq
 	err := decoder.Decode(&t)
 	if err != nil {
 		fmt.Println(err)
 	}
+  fmt.Println(t.Result.Fulfillment.Speech)
+  var response string
+  switch t.Result.Fulfillment.Speech {
+    case "Read Hacker News...":
+      response = "The top post of hacker news is: " + getHackerNews()
+    default:
+      response = "Sorry, I didnt get what you said"
+  }
 
-	//fmt.Println(t.Result.Action)
-	//res := WebhookFulfillment{ Speech: t.Result.Action, DisplayText: t.Result.Action, Source: "my dick" }
-	//res := WebhookRes{ WebhookFulfillment{ Speech: t.Result.Action, DisplayText: t.Result.Action } }
-	//json.NewEncoder(rw).Encode(res)
-	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", t.Result.Action)
+	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
 }
 
 func spotify_auth() {
-  var BASE_URI string = "https://accounts.spotify.com/authorize"
-  req, err := http.NewRequest("GET", BASE_URI, nil)
+  var BASE_URI string = "https://accounts.spotify.com/api/token"
+  req, err := http.NewRequest("POST", BASE_URI, nil)
   if err != nil {
     fmt.Println(err)
     return
   }
+  req.Header.Set("Authorization", "Basic")
   q := req.URL.Query()
-  q.Add("client_id", spotify_client_id)
+  q.Add("grant_type", "client_credentials")
   q.Add("response_type", "code")
   q.Add("redirect_uri", spotify_redirect)
 
@@ -84,7 +94,7 @@ func spotify_auth() {
   if er != nil {
     fmt.Println(er)
   }
-  fmt.Println(resp)
+  fmt.Println(resp.Body)
 }
 
 func signToken(tokenStruct NewTokenStruct, key interface{}) (string, error) {
@@ -129,15 +139,55 @@ func validateToken(tokenString string) error {
 	return nil
 }
 
+type HackerNewsJSON struct {
+  Title string
+}
+
+func getHackerNews() string {
+  var BASE_URI string = "https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty"
+  res, err := http.Get(BASE_URI)
+  if err != nil {
+    fmt.Println(err)
+  }
+  defer res.Body.Close()
+
+  var resp string = ""
+  if res.StatusCode == 200 {
+    bodyBytes, _ := ioutil.ReadAll(res.Body)
+    var bodyString string = string(bodyBytes)
+    var topID string = ""
+    var i int = 2
+    for bodyString[i] != 44 {
+      topID = topID + string(bodyString[i])
+      i = i + 1
+    }
+    response := HackerNewsJSON{}
+    simple_get("https://hacker-news.firebaseio.com/v0/item/" + topID + ".json?print=pretty", &response)
+    resp = string(response.Title)
+  }
+  return resp
+}
+
+func simple_get(url string, target interface{}) error {
+  var client http.Client
+  r, err := client.Get(url)
+  if err != nil {
+    return err
+  }
+  defer r.Body.Close()
+  return json.NewDecoder(r.Body).Decode(target)
+}
+
 var spotify_client_id string = "a8c0b2ec2d4542298259a9c6d85dba83"
 var spotify_client_secret string = "a01877d1e09245e3a1f22f04b8a9fc1e"
 var spotify_redirect string = "https://35.166.199.67:8080/"
 
 func main() {
 
-  spotify_auth()
-	textHandler := http.HandlerFunc(textPost)
-	http.Handle("/api/text", authorization(textHandler))
+  //spotify_auth()
+  //getHackerNews()
+	//textHandler := http.HandlerFunc(textPost)
+	//http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api", webhook_handler)
 
   http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
