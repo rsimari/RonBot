@@ -154,14 +154,15 @@ func getRedditTopPost() string {
 func simple_req(method string, url string, headers map[string]string, body map[string]string, response interface{}) error {
 
   var client http.Client
-  r, err := http.NewRequest(method, url, nil)
-
-  for k, v := range headers {
-    r.Header.Add(k, v)
-  }
 
   if body != nil {
     jsonString, err := json.Marshal(body)
+  }
+
+  r, err := http.NewRequest(method, url, bytes.NewBuffer(jsonString)))
+
+  for k, v := range headers {
+    r.Header.Add(k, v)
   }
 
   if err != nil {
