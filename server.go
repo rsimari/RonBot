@@ -53,26 +53,6 @@ func textPost(w http.ResponseWriter, r *http.Request) {
   w.Write([]byte("OK"))
 }
 
-func webhook_handler(rw http.ResponseWriter, request* http.Request) {
-	rw.Header().Set("Content-Type", "application/json")
-
-  decoder := json.NewDecoder(request.Body)
-	var t WebhookReq
-	err := decoder.Decode(&t)
-	if err != nil {
-		fmt.Println(err)
-	}
-  fmt.Println(t.Result.Fulfillment.Speech)
-  var response string
-  switch t.Result.Fulfillment.Speech {
-    case "Read Hacker News...":
-      response = "The top post of hacker news is: " + getHackerNews()
-    default:
-      response = "Sorry, I didnt get what you said"
-  }
-
-	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
-}
 
 func spotify_auth() {
   var BASE_URI string = "https://accounts.spotify.com/api/token"
@@ -143,7 +123,7 @@ type HackerNewsJSON struct {
   Title string
 }
 
-func getHackerNews() string {
+func getHackerNewsTopPost() string {
   var BASE_URI string = "https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty"
   res, err := http.Get(BASE_URI)
   if err != nil {
@@ -168,6 +148,56 @@ func getHackerNews() string {
   return resp
 }
 
+func getHackerNewsTopJob() string {
+  var BASE_URI string = "https://hacker-news.firebaseio.com/v0/jobstories.json"
+  res, err := http.Get(BASE_URI)
+  if err != nil {
+    fmt.Println(err)
+  }
+  defer res.Body.Close()
+
+  var resp string = ""
+  if res.StatusCode == 200 {
+    bodyBytes, _ := ioutil.ReadAll(res.Body)
+    var bodyString string = string(bodyBytes)
+    var topID string = ""
+    var i int = 1
+    for bodyString[i] != 44 {
+      topID = topID + string(bodyString[i])
+      i = i + 1
+    }
+    response := HackerNewsJSON{}
+    simple_get("https://hacker-news.firebaseio.com/v0/item/" + topID + ".json?print=pretty", &response)
+    resp = string(response.Title)
+  }
+  return resp
+
+}
+
+// specific information for post
+type RedditChildData struct {
+  Title string
+}
+type RedditPosts struct {
+  Data RedditChildData
+}
+// data holding all posts on page
+type RedditPostData struct {
+  Children []RedditPosts
+  Modhash string
+}
+// overall json from page
+type RedditRes struct {
+  Data RedditPostData
+  Kind string
+}
+
+func getRedditTopPost() string {
+  response := RedditRes{}
+  simple_get("https://www.reddit.com/r/all.json", &response)
+  return response.Data.Children[0].Data.Title
+}
+
 func simple_get(url string, target interface{}) error {
   var client http.Client
   r, err := client.Get(url)
@@ -182,11 +212,33 @@ var spotify_client_id string = "a8c0b2ec2d4542298259a9c6d85dba83"
 var spotify_client_secret string = "a01877d1e09245e3a1f22f04b8a9fc1e"
 var spotify_redirect string = "https://35.166.199.67:8080/"
 
-func main() {
+func webhook_handler(rw http.ResponseWriter, request* http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
 
-  //spotify_auth()
-  //getHackerNews()
-	//textHandler := http.HandlerFunc(textPost)
+  decoder := json.NewDecoder(request.Body)
+	var t WebhookReq
+	err := decoder.Decode(&t)
+	if err != nil {
+		fmt.Println(err)
+	}
+  var response string
+  // reads action from api.ai bot and sends back correct api response
+  switch t.Result.Action {
+    case "hacker_news_top_post":
+      response = "The top post of hacker news is: " + getHackerNewsTopPost()
+    case "hacker_news_top_job":
+      response = "The top job post on hacker news is currently: " + getHackerNewsTopJob()
+    case "reddit_top_post":
+      response = "The top post on reddit right now is: " + getRedditTopPost()
+    default:
+      response = "Sorry, I didnt get what you said"
+  }
+
+	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
+}
+
+func main() {
+  //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api", webhook_handler)
 
