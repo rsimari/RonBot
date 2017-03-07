@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"encoding/json"
-	jwt "github.com/dgrijalva/jwt-go"
 	"log"
   "io/ioutil"
+  "bytes"
 	//"net/http/httputil"
 )
 
@@ -155,11 +155,17 @@ func simple_req(method string, url string, headers map[string]string, body map[s
 
   var client http.Client
 
+  var jsonString []byte 
   if body != nil {
-    jsonString, err := json.Marshal(body)
-  }
+    var err error
+    jsonString, err = json.Marshal(body)
+    if err != nil {
 
-  r, err := http.NewRequest(method, url, bytes.NewBuffer(jsonString)))
+    }
+
+  } else { jsonString = []byte("") }
+
+  r, err := http.NewRequest(method, url, bytes.NewBuffer(jsonString))
 
   for k, v := range headers {
     r.Header.Add(k, v)

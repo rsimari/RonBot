@@ -1,3 +1,12 @@
+package main 
+
+
+
+import (
+	"fmt"
+	jwt "github.com/dgrijalva/jwt-go"
+)
+
 type NewTokenStruct struct {
 	 FirstName string
 	 LastName string
