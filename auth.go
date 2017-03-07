@@ -1,3 +1,5 @@
+package main
+
 type NewTokenStruct struct {
 	 FirstName string
 	 LastName string

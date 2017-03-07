@@ -159,7 +159,7 @@ func simple_req(method string, url string, headers map[string]string, body map[s
     jsonString, err := json.Marshal(body)
   }
 
-  r, err := http.NewRequest(method, url, bytes.NewBuffer(jsonString)))
+  r, err := http.NewRequest(method, url, bytes.NewBuffer(jsonString))
 
   for k, v := range headers {
     r.Header.Add(k, v)
