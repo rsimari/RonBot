@@ -12,7 +12,12 @@ import (
 
 type WebhookResult struct {
 	Action string
+  Parameters WebhookParameters 
   Fulfillment WebhookFulfillment
+}
+
+type WebhookParameters struct {
+  City string
 }
 
 type WebhookMeta struct {
@@ -33,6 +38,9 @@ type WebhookRes struct {
 	Fulfillment WebhookFulfillment
 }
 
+
+
+//*************** AUTH *****************//
 func authorization(next http.Handler) http.Handler {
   return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
     log.Println("Executing middlewareOne")
@@ -69,6 +77,9 @@ func spotify_auth() {
   }
   fmt.Println(resp.Body)
 }
+
+
+//************* HACKER NEWS SKILL *******************///
 
 type HackerNewsJSON struct {
   Title string
@@ -125,6 +136,11 @@ func getHackerNewsTopJob() string {
 
 }
 
+
+//****************** END HACKER NEWS **********************//
+
+//****************** REDDIT SKILL *************************//
+
 // specific information for post
 type RedditChildData struct {
   Title string
@@ -143,11 +159,42 @@ type RedditRes struct {
   Kind string
 }
 
+type WeatherRes struct {
+  Main WeatherMain
+  Data WeatherData
+}
+
+type WeatherData struct {
+  Main string 
+  Description string 
+}
+
+type WeatherMain struct {
+  Temp float32
+  MinTemp float32
+  MaxTemp float32
+}
+
 func getRedditTopPost() string {
   response := RedditRes{}
   simple_req("GET", "https://www.reddit.com/r/all.json", nil, nil, &response)
   return response.Data.Children[0].Data.Title
 }
+
+
+//****************** END reddit **********************//
+
+
+//****************** START weather ******************//
+func getCurrentWeather(t WebhookReq) string {
+  fmt.Println("Getting weather..."); 
+
+  response := WeatherRes{}
+  simple_req("GET", "http://api.openweathermap.org/data/2.5/weather?q=" + "&APPID=4e7036fa40c4ae2705533033fa77b0a1", nil, nil, &response)
+  return "The temperature in ... is ... right now. It is ... with a chance of rain of ... percent."
+}
+
+
 
 
 //handles making a simply request 
@@ -190,14 +237,20 @@ var spotify_client_secret string = "a01877d1e09245e3a1f22f04b8a9fc1e"
 var spotify_redirect string = "https://35.166.199.67:8080/"
 
 func webhook_handler(rw http.ResponseWriter, request* http.Request) {
+
 	rw.Header().Set("Content-Type", "application/json")
 
   decoder := json.NewDecoder(request.Body)
+
 	var t WebhookReq
 	err := decoder.Decode(&t)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+
+  fmt.Println(t)
+
   var response string
   // reads action from api.ai bot and sends back correct api response
   switch t.Result.Action {
@@ -207,6 +260,17 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       response = "The top job post on hacker news is currently: " + getHackerNewsTopJob()
     case "reddit_top_post":
       response = "The top post on reddit right now is: " + getRedditTopPost()
+    case "weather":
+      //response = getCurrentWeather(t)
+      //get the place, get the weather
+    case "current_time": 
+      //get the current time 
+    case "alarm":
+      //set an alarm somehow 
+    case "reminder":
+      //add a reminder 
+    case "netflix": 
+      //check if its on netflix 
     default:
       response = "Sorry, I didnt get what you said"
   }
@@ -214,12 +278,15 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
 }
 
+
+
 func main() {
   //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api", webhook_handler)
 
   http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
+    
 	  w.Header().Set("Content-Type", "application/json")
 
     decoder := json.NewDecoder(r.Body)

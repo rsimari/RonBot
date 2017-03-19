@@ -1,7 +1,5 @@
 package main 
 
-
-
 import (
 	"fmt"
 	jwt "github.com/dgrijalva/jwt-go"
