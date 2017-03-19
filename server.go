@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"encoding/json"
-	jwt "github.com/dgrijalva/jwt-go"
 	"log"
   "io/ioutil"
+  "bytes"
 	//"net/http/httputil"
 )
 
@@ -155,9 +155,15 @@ func simple_req(method string, url string, headers map[string]string, body map[s
 
   var client http.Client
 
+  var jsonString []byte 
   if body != nil {
-    jsonString, err := json.Marshal(body)
-  }
+    var err error
+    jsonString, err = json.Marshal(body)
+    if err != nil {
+
+    }
+
+  } else { jsonString = []byte("") }
 
   r, err := http.NewRequest(method, url, bytes.NewBuffer(jsonString))
 
@@ -166,10 +172,10 @@ func simple_req(method string, url string, headers map[string]string, body map[s
   }
 
   if err != nil {
-    return err 
+    return err
   }
 
-  res, err := client.Do(r)   
+  res, err := client.Do(r)
 
   if err != nil {
     return err
@@ -211,7 +217,7 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 func main() {
   //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
-	http.HandleFunc("/api", webhook_handler)
+	http.HandleFunc("/api/speech", webhook_handler)
 
   http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
 	  w.Header().Set("Content-Type", "application/json")
