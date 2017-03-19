@@ -7,6 +7,7 @@ import (
 	"log"
   "io/ioutil"
   "bytes"
+	"strings"
 	//"net/http/httputil"
 )
 
@@ -18,6 +19,7 @@ type WebhookResult struct {
 
 type WebhookParameters struct {
   City string
+  DateTime string
 }
 
 type WebhookMeta struct {
@@ -161,18 +163,19 @@ type RedditRes struct {
 
 type WeatherRes struct {
   Main WeatherMain
-  Data WeatherData
+  Weather[] WeatherData
 }
 
 type WeatherData struct {
   Main string 
+  Id int 
   Description string 
 }
 
 type WeatherMain struct {
   Temp float32
-  MinTemp float32
-  MaxTemp float32
+  MinTemp float32 `json:"temp_min"`
+  MaxTemp float32 `json:"temp_max"`
 }
 
 func getRedditTopPost() string {
@@ -186,12 +189,53 @@ func getRedditTopPost() string {
 
 
 //****************** START weather ******************//
-func getCurrentWeather(t WebhookReq) string {
+func getCurrentWeather(city string) string {
   fmt.Println("Getting weather..."); 
 
   response := WeatherRes{}
-  simple_req("GET", "http://api.openweathermap.org/data/2.5/weather?q=" + "&APPID=4e7036fa40c4ae2705533033fa77b0a1", nil, nil, &response)
-  return "The temperature in ... is ... right now. It is ... with a chance of rain of ... percent."
+
+	var replacer = strings.NewReplacer(" ", "+")
+	var urlCity = replacer.Replace(city)
+  simple_req("GET", "http://api.openweathermap.org/data/2.5/weather?q=" + urlCity + "&APPID=4e7036fa40c4ae2705533033fa77b0a1", nil, nil, &response)
+
+
+	var fTemp = 1.8*(response.Main.Temp - 273) + 32
+	var fLowTemp = 1.8*(response.Main.MinTemp - 273) + 32
+	var fHighTemp = 1.8*(response.Main.MaxTemp-273) + 32
+	s := fmt.Sprintf("%.0f", fTemp)
+	sLow := fmt.Sprintf("%.0f", fLowTemp)
+	sHigh := fmt.Sprintf("%.0f", fHighTemp)
+
+	var id = response.Weather[0].Id
+	var idGroup = id/100 
+	var description string
+	fmt.Println(id)	
+	switch idGroup {
+		case 8:
+		if id % 100 > 0 {
+			if id == 801 || id == 802 {
+				description = "slightly cloudy"
+			} else {
+				description = "cloudy"
+ 			}
+		} else {
+			description = "clear"
+		} 
+		case 9: 
+		description = "extreme"
+		case 6:
+		description = "snowy"
+		case 5: 
+		description = "rainy"
+		case 3:
+		description = "drizzling"
+		case 2:
+		description = "thunderstorming"
+		default: 
+		description = "sunny"
+	}
+
+  return "It is " + description + " in " + city + " right now. The temperature in is " + s + " degrees right now, with a high of " + sHigh + " and a low of " + sLow + "."
 }
 
 
@@ -260,9 +304,8 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       response = "The top job post on hacker news is currently: " + getHackerNewsTopJob()
     case "reddit_top_post":
       response = "The top post on reddit right now is: " + getRedditTopPost()
-    case "weather":
-      //response = getCurrentWeather(t)
-      //get the place, get the weather
+    case "current_weather":
+      response = getCurrentWeather(t.Result.Parameters.City)
     case "current_time": 
       //get the current time 
     case "alarm":
