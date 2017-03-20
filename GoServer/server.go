@@ -37,7 +37,8 @@ func queueTwilio(execTime string, msg string) string {
         // The payload is a string to pass information into your worker as part of a task
         // It generally is a JSON-serialized string (which is what we're doing here) that can be deserialized in the worker
         payload := map[string]interface{} {
-                "Message" : "Test",
+                "Message" : msg,
+                "Phone" : "+14127601315",
         }
 
         payload_bytes, err := json.Marshal(payload)
@@ -48,7 +49,7 @@ func queueTwilio(execTime string, msg string) string {
 
         // Build the task
         task := &Task {
-                CodeName: "irontest",
+                CodeName: "send_twilio",
                 Payload: payload_str,
                 StartAt: execTime,
         }
