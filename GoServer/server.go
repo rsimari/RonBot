@@ -34,8 +34,9 @@ func queueTwilio(execTime string, msg string) string {
           //add todays calendar date etc. 
           date := time.Now().UTC().Format("2006-01-02")
           fmt.Println(date)
-          execTime := string(date) + "T" + execTime + "Z"
-        }
+          execTime = string(date) + "T" + execTime + "Z"
+        fmt.Println(execTime)
+	}
 
         const token = "IpsW3ZNlFsLl42T2vSqw"
         const project = "58cf2ffd0e2c7300061ad812"
