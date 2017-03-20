@@ -100,7 +100,7 @@ func queueTwilio(execTime string, msg string) string {
         return "Okay. I will send you a text message to remind you!"
 }
 
-
+/* API.ai stuff */
 type WebhookResult struct {
 	Action string
   Parameters WebhookParameters 
@@ -251,7 +251,7 @@ type RedditRes struct {
   Data RedditPostData
   Kind string
 }
-
+// Weather structs
 type WeatherRes struct {
   Main WeatherMain
   Weather[] WeatherData
@@ -278,6 +278,39 @@ func getRedditTopPost() string {
 
 //****************** END reddit **********************//
 
+
+//****************** START news *********************//
+
+type NewsRes struct {
+  Source string `json:"source"`
+  Status string `json:"status"`
+  Articles []NewsArticles `json:"articles"`
+}
+
+type NewsArticles struct {
+  Author string
+  Title string
+  Description string
+}
+
+func getNews(src string) []NewsArticles {
+  fmt.Println("Getting news from " + src + "...");
+
+  response := NewsRes{}
+
+  header := make(map[string]string)
+  header["x-api-key"] = "fcad7e1888274b8486f80b4e7435692e"
+
+  simple_req("GET", "https://newsapi.org/v1/articles?source=" + src, header, nil, &response)
+
+  if response.Status != "ok" {
+    return nil
+  }
+
+  return response.Articles
+}
+
+//****************** END news **********************//
 
 //****************** START weather ******************//
 func getCurrentWeather(city string) string {
@@ -346,21 +379,23 @@ func setTwilioReminder() {
   	req.SetBasicAuth(accountSid, authToken)
   	req.Header.Add("Accept", "application/json")
   	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
- 
+
   	// Make request
   	resp, _ := client.Do(req)
-  	fmt.Println(resp.Status)
+	  fmt.Println(resp.Status)
 
 
 }
 
 
-//handles making a simply request 
+//handles making a simple request 
 func simple_req(method string, url string, headers map[string]string, body map[string]string, response interface{}) error {
 
-  var client http.Client
+  tr := &http.Transport { MaxIdleConnsPerHost: 10 }
 
-  var jsonString []byte 
+  client := &http.Client{ Transport: tr }
+
+  var jsonString []byte
   if body != nil {
     var err error
     jsonString, err = json.Marshal(body)
@@ -387,6 +422,8 @@ func simple_req(method string, url string, headers map[string]string, body map[s
   }
 
   defer res.Body.Close()
+  //b, _ := ioutil.ReadAll(res.Body)
+  //fmt.Println(string(b))
   return json.NewDecoder(res.Body).Decode(response)
 }
 
@@ -420,12 +457,19 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       response = "The top post on reddit right now is: " + getRedditTopPost()
     case "current_weather":
       response = getCurrentWeather(t.Result.Parameters.City)
-    case "current_time": 
+    case "current_bbc_news":
+      var res []NewsArticles = getNews("bbc-news")
+      if res == nil { 
+        response = "I could not get news from the BBC right now"
+      } else {
+        response = "From the BBC, " + res[0].Title
+      }
+    case "current_time":
       //get the current time 
     case "set_reminder":
       //add a reminder 
       response = queueTwilio(t.Result.Parameters.DateTime, t.Result.ResolvedQuery)
-    case "netflix": 
+    case "netflix":
       //check if its on netflix 
     default:
       response = "Sorry, I didnt get what you said"
@@ -437,6 +481,7 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 
 
 func main() {
+//  fmt.Println(getNews("bbc-news")[0].Title)
   //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api/speech", webhook_handler)
