@@ -312,9 +312,37 @@ func getNews(src string) []NewsArticles {
 
 //****************** END news **********************//
 
+//****************** START jokes ******************//
+
+type JokeRes struct {
+  Type string
+  Value JokeData
+}
+
+type JokeData struct {
+  Joke string
+}
+
+func getJoke() string {
+  fmt.Println("Getting a joke...")
+
+  response := JokeRes{}
+
+  simple_req("GET", "http://api.icndb.com/jokes/random?limitTo=[nerdy]&firstName=Peter&lastName=Bui&escape=javascript", nil, nil, &response)
+
+  if response.Type != "success" {
+    return "Sorry I couldnt get a joke"
+  }
+
+  return response.Value.Joke
+
+}
+
+//***************** END jokes ********************//
+
 //****************** START weather ******************//
 func getCurrentWeather(city string) string {
-  fmt.Println("Getting weather..."); 
+  fmt.Println("Getting weather...");
 
   response := WeatherRes{}
 
@@ -459,11 +487,27 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       response = getCurrentWeather(t.Result.Parameters.City)
     case "current_bbc_news":
       var res []NewsArticles = getNews("bbc-news")
-      if res == nil { 
+      if res == nil {
         response = "I could not get news from the BBC right now"
       } else {
         response = "From the BBC, " + res[0].Title
       }
+    case "current_cnn_news":
+      var res []NewsArticles = getNews("cnn")
+      if res == nil {
+        response = "I could not get news from CNN right now"
+      } else {
+        response = "From CNN, " + res[0].Title
+      }
+    case "current_tech_news":
+      var res []NewsArticles = getNews("techcrunch")
+      if res == nil {
+        response = "I could not get news techcrunch right now"
+      } else {
+        response = "From TechCrunch, " + res[0].Title
+      }
+    case "joke":
+      response = getJoke()
     case "current_time":
       //get the current time 
     case "set_reminder":
@@ -478,16 +522,23 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
 }
 
+// ******************* Fetching user data ****************//
+type UserData struct {
+  Name string `json:"name"`
+}
 
+func init() {
+  // read from user_data.json file for state 
+}
+// ******************* End of user data ****************//
 
 func main() {
-//  fmt.Println(getNews("bbc-news")[0].Title)
   //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api/speech", webhook_handler)
 
   http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
-    
+
 	  w.Header().Set("Content-Type", "application/json")
 
     decoder := json.NewDecoder(r.Body)
