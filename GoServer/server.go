@@ -10,6 +10,8 @@ import (
   "bytes"
 	"strings"
 
+  "time"
+
 	//"net/http/httputil"
 )
 
@@ -27,6 +29,14 @@ type ReqData struct {
 }
 
 func queueTwilio(execTime string, msg string) string {
+
+        if len(execTime) == 8 {
+          //add todays calendar date etc. 
+          date := time.Now().UTC().Format("2006-01-02")
+          fmt.Println(date)
+          execTime := string(date) + "T" + execTime + "Z"
+        }
+
         const token = "IpsW3ZNlFsLl42T2vSqw"
         const project = "58cf2ffd0e2c7300061ad812"
 
