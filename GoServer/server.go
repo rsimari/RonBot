@@ -23,7 +23,7 @@ type Task struct {
 }
 
 type ReqData struct {
-        Tasks []*Task `json:"tasks"`
+        Schedules []*Task `json:"schedules"`
 }
 
 func queueTwilio(execTime string, msg string) string {
@@ -55,7 +55,7 @@ func queueTwilio(execTime string, msg string) string {
 
         // Build a request containing the task
         json_data := &ReqData {
-                Tasks: []*Task { task },
+                Schedules: []*Task { task },
         }
 
         json_bytes, err := json.Marshal(json_data)
@@ -410,7 +410,7 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       response = getCurrentWeather(t.Result.Parameters.City)
     case "current_time": 
       //get the current time 
-    case "reminder":
+    case "set_reminder":
       //add a reminder 
       response = queueTwilio(t.Result.Parameters.DateTime, t.Result.ResolvedQuery)
     case "netflix": 
