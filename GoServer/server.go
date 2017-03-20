@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"encoding/json"
 	"log"
   "io/ioutil"
@@ -235,10 +236,33 @@ func getCurrentWeather(city string) string {
 		description = "sunny"
 	}
 
-  return "It is " + description + " in " + city + " right now. The temperature in is " + s + " degrees right now, with a high of " + sHigh + " and a low of " + sLow + "."
+  return "It is " + description + " in " + city + " right now. The temperature is " + s + " degrees, with a high of " + sHigh + " and a low of " + sLow + "."
 }
 
+func setTwilioReminder() {
 
+	accountSid := "AC6fe206e4c09c5f10f3f6907d2d4a1498"
+	authToken := "b917e2302a83ba7cc98731987628d8c9"
+	urlStr := "https://api.twilio.com/2010-04-01/Accounts/" + accountSid + "/Messages.json"
+	v := url.Values{}
+  	v.Set("To","+14127601315")
+  	v.Set("From","+14123608598")
+  	v.Set("Body","Brooklyn's in the house!")
+  	rb := *strings.NewReader(v.Encode())
+
+	client := &http.Client{}
+ 
+  	req, _ := http.NewRequest("POST", urlStr, &rb)
+  	req.SetBasicAuth(accountSid, authToken)
+  	req.Header.Add("Accept", "application/json")
+  	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+ 
+  	// Make request
+  	resp, _ := client.Do(req)
+  	fmt.Println(resp.Status)
+
+
+}
 
 
 //handles making a simply request 
