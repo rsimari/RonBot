@@ -331,7 +331,7 @@ func getJoke() string {
   simple_req("GET", "http://api.icndb.com/jokes/random?limitTo=[nerdy]&firstName=Peter&lastName=Bui&escape=javascript", nil, nil, &response)
 
   if response.Type != "success" {
-    return "Sorry I couldnt get a joke"
+    return "Sorry I could not get a joke"
   }
 
   return response.Value.Joke
@@ -523,12 +523,31 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 }
 
 // ******************* Fetching user data ****************//
-type UserData struct {
+type User struct {
   Name string `json:"name"`
+}
+
+func getUser() User {
+    file, _ := ioutil.ReadFile("./user_data.json")
+    var u User
+    json.Unmarshal(file, &u)
+    return u
+}
+
+func setUser(key string, val interface{}) {
+    user_json, _ := json.Marshal(u)
+    err = ioutil.WriteFile("./user_data.json", user_json, 0777)
 }
 
 func init() {
   // read from user_data.json file for state 
+    // if user data file does not exist make one
+    _, err := os.Stat("./user_data.json")
+    if os.IsNotExist(err) {
+        var file, _ = os.Create("./user_data.json")
+        defer file.Close()
+        ioutil.WriteFile("./user_data.json", "{}", 0777)
+    }
 }
 // ******************* End of user data ****************//
 
