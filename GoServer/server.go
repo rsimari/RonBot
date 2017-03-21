@@ -31,11 +31,27 @@ type ReqData struct {
 func queueTwilio(execTime string, msg string) string {
 
         if len(execTime) == 8 {
-          //add todays calendar date etc. 
-          date := time.Now().UTC().Format("2006-01-02")
-          fmt.Println(date)
-          execTime = string(date) + "T" + execTime + "Z"
-        fmt.Println(execTime)
+          //add todays calendar date etc.
+	loc, _ := time.LoadLocation("America/New_York") //get from file  
+          date := time.Now().In(loc)
+	dateString := date.Format("2006-01-02")   
+	fmt.Println(dateString)
+          execTime = string(dateString) + "T" + execTime + "-04:00"
+	fmt.Println(execTime)
+	newTime, _ := time.Parse("2006-01-02T15:04:05-07:00", execTime)
+	newUTCTime := newTime.UTC()
+
+        fmt.Println(newUTCTime.Format("2006-01-02T15:04:05Z"))
+	} else {
+
+	//loc, _ := time.LoadLocation("America/New_York")
+	execTime := execTime + "-04:00"
+	newTime, _ := time.Parse("2006-01-02T15:04:05Z-07:00", execTime)
+
+	newUTCTime := newTime.UTC()
+
+	fmt.Println(newUTCTime.Format("2006-01-02T15:04:05Z"))	
+
 	}
 
         const token = "IpsW3ZNlFsLl42T2vSqw"
@@ -516,7 +532,7 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
     case "netflix":
       //check if its on netflix 
     default:
-      response = "Sorry, I didnt get what you said"
+      response = "Sorry, I did not get what you said"
   }
 
 	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
@@ -525,6 +541,10 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 // ******************* Fetching user data ****************//
 type UserData struct {
   Name string `json:"name"`
+}
+
+type User interface {
+
 }
 
 func init() {
