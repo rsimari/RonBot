@@ -3,16 +3,114 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"encoding/json"
 	"log"
   "io/ioutil"
   "bytes"
+	"strings"
+
+  "time"
+
 	//"net/http/httputil"
 )
 
+
+//************** IRON.IO STUFF *******************//
+
+type Task struct {
+        CodeName string `json:"code_name"`
+        Payload string `json:"payload"`
+        StartAt string `json:"start_at"`
+}
+
+type ReqData struct {
+        Schedules []*Task `json:"schedules"`
+}
+
+func queueTwilio(execTime string, msg string) string {
+
+        if len(execTime) == 8 {
+          //add todays calendar date etc. 
+          date := time.Now().UTC().Format("2006-01-02")
+          fmt.Println(date)
+          execTime = string(date) + "T" + execTime + "Z"
+        fmt.Println(execTime)
+	}
+
+        const token = "IpsW3ZNlFsLl42T2vSqw"
+        const project = "58cf2ffd0e2c7300061ad812"
+
+        // Insert our project ID and token into the API endpoint
+        target := fmt.Sprintf("http://worker-us-east.iron.io/2/projects/%s/schedules?oauth=%s", project, token)
+
+        // Build the payload
+        // The payload is a string to pass information into your worker as part of a task
+        // It generally is a JSON-serialized string (which is what we're doing here) that can be deserialized in the worker
+        payload := map[string]interface{} {
+                "Message" : msg,
+                "Phone" : "+14127601315",
+        }
+
+        payload_bytes, err := json.Marshal(payload)
+        if err != nil {
+                panic(err.Error())
+        }
+        payload_str := string(payload_bytes)
+
+        // Build the task
+        task := &Task {
+                CodeName: "send_twilio",
+                Payload: payload_str,
+                StartAt: execTime,
+        }
+
+        // Build a request containing the task
+        json_data := &ReqData {
+                Schedules: []*Task { task },
+        }
+
+        json_bytes, err := json.Marshal(json_data)
+
+        if err != nil {
+                panic(err.Error())
+        }
+
+        json_str := string(json_bytes)
+
+        // Post expects a Reader
+        json_buf := bytes.NewBufferString(json_str)
+
+        // Make the request
+        resp, err := http.Post(target, "application/json", json_buf)
+        if err != nil {
+                panic(err.Error())
+        }
+        defer resp.Body.Close()
+
+        // Read the response
+        resp_body, err := ioutil.ReadAll(resp.Body)
+        if err != nil {
+                panic(err.Error())
+        }
+
+        // Print the response to STDOUT
+        fmt.Println(string(resp_body))
+
+        return "Okay. I will send you a text message to remind you!"
+}
+
+/* API.ai stuff */
 type WebhookResult struct {
 	Action string
+  Parameters WebhookParameters 
   Fulfillment WebhookFulfillment
+  ResolvedQuery string 
+}
+
+type WebhookParameters struct {
+  City string
+  DateTime string
 }
 
 type WebhookMeta struct {
@@ -33,6 +131,9 @@ type WebhookRes struct {
 	Fulfillment WebhookFulfillment
 }
 
+
+
+//*************** AUTH *****************//
 func authorization(next http.Handler) http.Handler {
   return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
     log.Println("Executing middlewareOne")
@@ -69,6 +170,9 @@ func spotify_auth() {
   }
   fmt.Println(resp.Body)
 }
+
+
+//************* HACKER NEWS SKILL *******************///
 
 type HackerNewsJSON struct {
   Title string
@@ -125,6 +229,11 @@ func getHackerNewsTopJob() string {
 
 }
 
+
+//****************** END HACKER NEWS **********************//
+
+//****************** REDDIT SKILL *************************//
+
 // specific information for post
 type RedditChildData struct {
   Title string
@@ -142,6 +251,23 @@ type RedditRes struct {
   Data RedditPostData
   Kind string
 }
+// Weather structs
+type WeatherRes struct {
+  Main WeatherMain
+  Weather[] WeatherData
+}
+
+type WeatherData struct {
+  Main string 
+  Id int 
+  Description string 
+}
+
+type WeatherMain struct {
+  Temp float32
+  MinTemp float32 `json:"temp_min"`
+  MaxTemp float32 `json:"temp_max"`
+}
 
 func getRedditTopPost() string {
   response := RedditRes{}
@@ -150,12 +276,154 @@ func getRedditTopPost() string {
 }
 
 
-//handles making a simply request 
+//****************** END reddit **********************//
+
+
+//****************** START news *********************//
+
+type NewsRes struct {
+  Source string `json:"source"`
+  Status string `json:"status"`
+  Articles []NewsArticles `json:"articles"`
+}
+
+type NewsArticles struct {
+  Author string
+  Title string
+  Description string
+}
+
+func getNews(src string) []NewsArticles {
+  fmt.Println("Getting news from " + src + "...");
+
+  response := NewsRes{}
+
+  header := make(map[string]string)
+  header["x-api-key"] = "fcad7e1888274b8486f80b4e7435692e"
+
+  simple_req("GET", "https://newsapi.org/v1/articles?source=" + src, header, nil, &response)
+
+  if response.Status != "ok" {
+    return nil
+  }
+
+  return response.Articles
+}
+
+//****************** END news **********************//
+
+//****************** START jokes ******************//
+
+type JokeRes struct {
+  Type string
+  Value JokeData
+}
+
+type JokeData struct {
+  Joke string
+}
+
+func getJoke() string {
+  fmt.Println("Getting a joke...")
+
+  response := JokeRes{}
+
+  simple_req("GET", "http://api.icndb.com/jokes/random?limitTo=[nerdy]&firstName=Peter&lastName=Bui&escape=javascript", nil, nil, &response)
+
+  if response.Type != "success" {
+    return "Sorry I could not get a joke"
+  }
+
+  return response.Value.Joke
+
+}
+
+//***************** END jokes ********************//
+
+//****************** START weather ******************//
+func getCurrentWeather(city string) string {
+  fmt.Println("Getting weather...");
+
+  response := WeatherRes{}
+
+	var replacer = strings.NewReplacer(" ", "+")
+	var urlCity = replacer.Replace(city)
+  simple_req("GET", "http://api.openweathermap.org/data/2.5/weather?q=" + urlCity + "&APPID=4e7036fa40c4ae2705533033fa77b0a1", nil, nil, &response)
+
+
+	var fTemp = 1.8*(response.Main.Temp - 273) + 32
+	var fLowTemp = 1.8*(response.Main.MinTemp - 273) + 32
+	var fHighTemp = 1.8*(response.Main.MaxTemp-273) + 32
+	s := fmt.Sprintf("%.0f", fTemp)
+	sLow := fmt.Sprintf("%.0f", fLowTemp)
+	sHigh := fmt.Sprintf("%.0f", fHighTemp)
+
+	var id = response.Weather[0].Id
+	var idGroup = id/100 
+	var description string
+	fmt.Println(id)	
+	switch idGroup {
+		case 8:
+		if id % 100 > 0 {
+			if id == 801 || id == 802 {
+				description = "slightly cloudy"
+			} else {
+				description = "cloudy"
+ 			}
+		} else {
+			description = "clear"
+		} 
+		case 9: 
+		description = "extreme"
+		case 6:
+		description = "snowy"
+		case 5: 
+		description = "rainy"
+		case 3:
+		description = "drizzling"
+		case 2:
+		description = "thunderstorming"
+		default: 
+		description = "sunny"
+	}
+
+  return "It is " + description + " in " + city + " right now. The temperature is " + s + " degrees, with a high of " + sHigh + " and a low of " + sLow + "."
+}
+
+func setTwilioReminder() {
+
+	accountSid := "AC6fe206e4c09c5f10f3f6907d2d4a1498"
+	authToken := "b917e2302a83ba7cc98731987628d8c9"
+	urlStr := "https://api.twilio.com/2010-04-01/Accounts/" + accountSid + "/Messages.json"
+	v := url.Values{}
+  	v.Set("To","+14127601315")
+  	v.Set("From","+14123608598")
+  	v.Set("Body","Brooklyn's in the house!")
+  	rb := *strings.NewReader(v.Encode())
+
+	client := &http.Client{}
+ 
+  	req, _ := http.NewRequest("POST", urlStr, &rb)
+  	req.SetBasicAuth(accountSid, authToken)
+  	req.Header.Add("Accept", "application/json")
+  	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+  	// Make request
+  	resp, _ := client.Do(req)
+	  fmt.Println(resp.Status)
+
+
+}
+
+
+//handles making a simple request 
 func simple_req(method string, url string, headers map[string]string, body map[string]string, response interface{}) error {
 
-  var client http.Client
+  tr := &http.Transport { MaxIdleConnsPerHost: 10 }
 
-  var jsonString []byte 
+  client := &http.Client{ Transport: tr }
+
+  var jsonString []byte
   if body != nil {
     var err error
     jsonString, err = json.Marshal(body)
@@ -172,16 +440,18 @@ func simple_req(method string, url string, headers map[string]string, body map[s
   }
 
   if err != nil {
-    return err 
+    return err
   }
 
-  res, err := client.Do(r)   
+  res, err := client.Do(r)
 
   if err != nil {
     return err
   }
 
   defer res.Body.Close()
+  //b, _ := ioutil.ReadAll(res.Body)
+  //fmt.Println(string(b))
   return json.NewDecoder(res.Body).Decode(response)
 }
 
@@ -190,14 +460,20 @@ var spotify_client_secret string = "a01877d1e09245e3a1f22f04b8a9fc1e"
 var spotify_redirect string = "https://35.166.199.67:8080/"
 
 func webhook_handler(rw http.ResponseWriter, request* http.Request) {
+
 	rw.Header().Set("Content-Type", "application/json")
 
   decoder := json.NewDecoder(request.Body)
+
 	var t WebhookReq
 	err := decoder.Decode(&t)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+
+  fmt.Println(t)
+
   var response string
   // reads action from api.ai bot and sends back correct api response
   switch t.Result.Action {
@@ -207,6 +483,38 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       response = "The top job post on hacker news is currently: " + getHackerNewsTopJob()
     case "reddit_top_post":
       response = "The top post on reddit right now is: " + getRedditTopPost()
+    case "current_weather":
+      response = getCurrentWeather(t.Result.Parameters.City)
+    case "current_bbc_news":
+      var res []NewsArticles = getNews("bbc-news")
+      if res == nil {
+        response = "I could not get news from the BBC right now"
+      } else {
+        response = "From the BBC, " + res[0].Title
+      }
+    case "current_cnn_news":
+      var res []NewsArticles = getNews("cnn")
+      if res == nil {
+        response = "I could not get news from CNN right now"
+      } else {
+        response = "From CNN, " + res[0].Title
+      }
+    case "current_tech_news":
+      var res []NewsArticles = getNews("techcrunch")
+      if res == nil {
+        response = "I could not get news techcrunch right now"
+      } else {
+        response = "From TechCrunch, " + res[0].Title
+      }
+    case "joke":
+      response = getJoke()
+    case "current_time":
+      //get the current time 
+    case "set_reminder":
+      //add a reminder 
+      response = queueTwilio(t.Result.Parameters.DateTime, t.Result.ResolvedQuery)
+    case "netflix":
+      //check if its on netflix 
     default:
       response = "Sorry, I didnt get what you said"
   }
@@ -214,12 +522,42 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
 }
 
+// ******************* Fetching user data ****************//
+type User struct {
+  Name string `json:"name"`
+}
+
+func getUser() User {
+    file, _ := ioutil.ReadFile("./user_data.json")
+    var u User
+    json.Unmarshal(file, &u)
+    return u
+}
+
+func setUser(key string, val interface{}) {
+    user_json, _ := json.Marshal(u)
+    err = ioutil.WriteFile("./user_data.json", user_json, 0777)
+}
+
+func init() {
+  // read from user_data.json file for state 
+    // if user data file does not exist make one
+    _, err := os.Stat("./user_data.json")
+    if os.IsNotExist(err) {
+        var file, _ = os.Create("./user_data.json")
+        defer file.Close()
+        ioutil.WriteFile("./user_data.json", "{}", 0777)
+    }
+}
+// ******************* End of user data ****************//
+
 func main() {
   //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
-	http.HandleFunc("/api", webhook_handler)
+	http.HandleFunc("/api/speech", webhook_handler)
 
   http.HandleFunc("/generate_api_token", func(w http.ResponseWriter, r *http.Request) {
+
 	  w.Header().Set("Content-Type", "application/json")
 
     decoder := json.NewDecoder(r.Body)
