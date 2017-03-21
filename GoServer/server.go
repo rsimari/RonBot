@@ -8,7 +8,9 @@ import (
 	"log"
   "io/ioutil"
   "bytes"
+  "sync"
 	"strings"
+	"os"
 
   "time"
 
@@ -347,7 +349,7 @@ func getJoke() string {
   simple_req("GET", "http://api.icndb.com/jokes/random?limitTo=[nerdy]&firstName=Peter&lastName=Bui&escape=javascript", nil, nil, &response)
 
   if response.Type != "success" {
-    return "Sorry I couldnt get a joke"
+    return "Sorry I could not get a joke"
   }
 
   return response.Value.Joke
@@ -539,20 +541,47 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
 }
 
 // ******************* Fetching user data ****************//
-type UserData struct {
+type User struct {
   Name string `json:"name"`
 }
 
-type User interface {
+// thread safe get/set functions for user data file
+var mutex = &sync.Mutex{}
 
+func getUser(u *User) {
+	mutex.Lock()
+    file, _ := ioutil.ReadFile("./user_data.json")
+    mutex.Unlock()
+    json.Unmarshal(file, &u)
+}
+
+func setUser(u User) {
+	mutex.Lock()
+    user_json, _ := json.Marshal(u)
+    ioutil.WriteFile("./user_data.json", user_json, 0777)
+    mutex.Unlock()
 }
 
 func init() {
   // read from user_data.json file for state 
+    // if user data file does not exist make one
+    _, err := os.Stat("./user_data.json")
+    if os.IsNotExist(err) {
+        var file, _ = os.Create("./user_data.json")
+        defer file.Close()
+        empty := []byte{'{', '}'}
+        ioutil.WriteFile("./user_data.json", empty, 0777)
+    }
+
 }
 // ******************* End of user data ****************//
 
 func main() {
+	// var u User
+	// go getUser(&u)
+	// u.Name = "John"
+	// go setUser(u)
+
   //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api/speech", webhook_handler)
