@@ -10,6 +10,7 @@
     "espeak": "0.0.3",
     "node-record-lpcm16": "^0.1.7",
     "snowboy": "^1.1.0",
+    "sonus": "^0.1.7",
     "stream": "0.0.2"
   }
 }
