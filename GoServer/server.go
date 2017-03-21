@@ -432,21 +432,21 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       if res == nil {
         response = "I could not get news from the BBC right now"
       } else {
-        response = "From the BBC, " + res[0].Title
+        response = "From the BBC news, " + res[0].Title + ". " + res[0].Description
       }
     case "current_cnn_news":
       var res []NewsArticles = getNews("cnn")
       if res == nil {
         response = "I could not get news from CNN right now"
       } else {
-        response = "From CNN, " + res[0].Title
+        response = "From CNN, " + res[0].Title + ". " + res[0].Description
       }
     case "current_tech_news":
       var res []NewsArticles = getNews("techcrunch")
       if res == nil {
         response = "I could not get news techcrunch right now"
       } else {
-        response = "From TechCrunch, " + res[0].Title
+        response = "From TechCrunch, " + res[0].Title + ". " + res[0].Description 
       }
     case "joke":
       response = getJoke()
