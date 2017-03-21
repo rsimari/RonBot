@@ -129,6 +129,7 @@ type WebhookResult struct {
 type WebhookParameters struct {
   City string
   DateTime string
+  GivenName string `json:"given-name"`
 }
 
 type WebhookMeta struct {
@@ -526,6 +527,21 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       }
     case "joke":
       response = getJoke()
+    case "say_my_name":
+      var u User
+      getUser(&u)
+      if u.Name == "" {
+         response = "I do not know your name yet"
+      } else {
+         response = "Your name is " + u.Name
+      }
+    case "save_my_name":
+      var u User
+      getUser(&u)
+      u.Name = t.Result.Parameters.GivenName
+      fmt.Println(u.Name)
+      go setUser(u)
+      response = "Hi " + t.Result.Parameters.GivenName + " nice to meet you"
     case "current_time":
       //get the current time 
     case "set_reminder":
