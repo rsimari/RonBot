@@ -529,15 +529,14 @@ type User struct {
   Name string `json:"name"`
 }
 
+// thread safe get/set functions for user data file
 var mutex = &sync.Mutex{}
 
-func getUser() User {
+func getUser(u *User) {
 	mutex.Lock()
     file, _ := ioutil.ReadFile("./user_data.json")
     mutex.Unlock()
-    var u User
     json.Unmarshal(file, &u)
-    return u
 }
 
 func setUser(u User) {
@@ -562,6 +561,11 @@ func init() {
 // ******************* End of user data ****************//
 
 func main() {
+	// var u User
+	// go getUser(&u)
+	// u.Name = "John"
+	// go setUser(u)
+
   //textHandler := http.HandlerFunc(textPost)
 	//http.Handle("/api/text", authorization(textHandler))
 	http.HandleFunc("/api/speech", webhook_handler)
