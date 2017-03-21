@@ -8,7 +8,9 @@ import (
 	"log"
   "io/ioutil"
   "bytes"
+  "sync"
 	"strings"
+	"os"
 
   "time"
 
@@ -527,16 +529,22 @@ type User struct {
   Name string `json:"name"`
 }
 
+var mutex = &sync.Mutex{}
+
 func getUser() User {
+	mutex.Lock()
     file, _ := ioutil.ReadFile("./user_data.json")
+    mutex.Unlock()
     var u User
     json.Unmarshal(file, &u)
     return u
 }
 
-func setUser(key string, val interface{}) {
+func setUser(u User) {
+	mutex.Lock()
     user_json, _ := json.Marshal(u)
-    err = ioutil.WriteFile("./user_data.json", user_json, 0777)
+    ioutil.WriteFile("./user_data.json", user_json, 0777)
+    mutex.Unlock()
 }
 
 func init() {
@@ -546,8 +554,10 @@ func init() {
     if os.IsNotExist(err) {
         var file, _ = os.Create("./user_data.json")
         defer file.Close()
-        ioutil.WriteFile("./user_data.json", "{}", 0777)
+        empty := []byte{'{', '}'}
+        ioutil.WriteFile("./user_data.json", empty, 0777)
     }
+
 }
 // ******************* End of user data ****************//
 
