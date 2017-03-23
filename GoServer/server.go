@@ -193,12 +193,12 @@ func webhook_handler(rw http.ResponseWriter, request* http.Request) {
       go setUser(u)
       response = "Hi " + t.Result.Parameters.GivenName + " nice to meet you"
     case "current_time":
-      //get the current time 
+      //get the current time #TODO
     case "set_reminder":
       //add a reminder 
       response = queueTwilio(t.Result.Parameters.DateTime, t.Result.ResolvedQuery)
     default:
-      response = "Sorry, I did not get what you said"
+      response = "Sorry, I did not get what you said."
   }
 
 	fmt.Fprintf(rw, "{ \"speech\": \"%s\" }", response)
